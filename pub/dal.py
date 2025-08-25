@@ -42,3 +42,16 @@ class DataRead:
     def get_not_interesting(self,batch_size=None):
         return next(self.not_interesting, batch_size) if batch_size else next(self.not_interesting)
 
+
+
+if __name__ == "__main__":
+    data = DataRead()
+    message = data.get_not_interesting()
+    for i in message:
+        print(i)
+    message = data.get_not_interesting()
+    for i in message:
+        print(i)
+    message = data.get_not_interesting()
+    for i in message:
+        print(i)

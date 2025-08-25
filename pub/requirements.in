@@ -1,5 +1,4 @@
 fastapi
 uvicorn
-pymongo
-pydantic
 scikit-learn
+kafka-python

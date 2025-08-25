@@ -1,78 +1,55 @@
-# services/data_loader/main.py
 import logging
 import os
 from contextlib import asynccontextmanager
-from .dal import DataRead
-from fastapi import FastAPI, HTTPException, status
-
-from .crud import soldiers
-from .dependencies import data_loader
+from . import dependencies
+from fastapi import FastAPI
+from kafka import KafkaProducer
+import json
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, logging.INFO),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
+
 logger = logging.getLogger(__name__)
+
+
 data = dict()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Application startup")
     try:
-        data_read = DataRead()
-        data["read"] = data_read
-        logger.info("Database connection established successfully.")
+        data["producer"] = KafkaProducer(
+            bootstrap_servers=f"{dependencies.KAPKA_URL}:{dependencies.KAPKA_PORT}",
+            value_serializer=lambda x: json.dumps(x).encode('utf-8')
+        )
+        logger.info("")
     except Exception as e:
-        logger.error(f"Failed to connect to database: {e}")
-
+        logger.error(f"{e}")
     yield
-
-    # On server shutdown:
     logger.info("Application shutdown")
 
 
-# Create the main FastAPI application instance
 app = FastAPI(
     lifespan=lifespan,
-    title="FastAPI MongoDB CRUD Service",
-    version="2.0",
-    description="A microservice for managing soldier data, deployed on OpenShift.",
+    title="1",
+    version="1",
+    description="1",
 )
-
 
 
 @app.get("/")
 def health_check_endpoint():
-    """
-    Health check endpoint.
-    Used by OpenShift's readiness and liveness probes.
-    """
-    return {"status": "ok", "service": "FastAPI MongoDB CRUD Service"}
+    return {"status": "ok", "service": ""}
 
 
-@app.get("/health")
-def detailed_health_check():
-    """
-    Detailed health check endpoint.
-    Returns 503 if database is not available.
-    """
-    db_status = "connected" if data_loader.collection is not None else "disconnected"
-
-    if db_status == "disconnected":
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database not available",
-        )
-
-    return {
-        "status": "ok",
-        "service": "FastAPI MongoDB CRUD Service",
-        "version": "2.0",
-        "database_status": db_status,
-    }
-
-
-app.get("/pub")
-async def get_pub():
-    return data["read"].get_pub()
+@app.get("/pub")
+def push_pub():
+    manager = data.get("manager")
+    if manager is None:
+        from .manager import Manager
+    data["manager"].send_data()
