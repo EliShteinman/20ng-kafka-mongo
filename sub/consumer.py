@@ -16,13 +16,12 @@ class Consumer:
 
         self.consumer = KafkaConsumer(self.topic,
                                       group_id=self.group_id,
-                                      value_deserializer=lambda m: json.loads(m.decode('utf-8')),
+                                      value_deserializer=lambda m: json.loads(m.decode('ascii')),
                                       bootstrap_servers=[f"{self.url}:{self.port}"],
                                       consumer_timeout_ms=self.consumer_timeout_ms)
 
 
     def consume(self):
-        for message in self.consumer:
-            yield message.value
+        return self.consumer
 
 

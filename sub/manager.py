@@ -1,5 +1,5 @@
 import logging
-
+from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
@@ -17,10 +17,23 @@ class Manager:
         self.dal = dal
         self.consumer = consumer
         logger.info("Manager ready")
+        self.time = None
 
     async def get_data_from_mongo(self):
-        pass
+        self.time = datetime.now()
+        return await self.dal.receive_messages_from(self.time)
 
     async def get_data_from_kafka(self):
-        while self.consumer.consume():
-            pass
+        messages = self.consumer.consume()
+        result = []
+        for message in messages:
+            data = message.value
+            status = await self._insert_mes_to_mongo(data)
+            result.append(status)
+        return result
+
+    async def _insert_mes_to_mongo(self, mes):
+        data = await self.dal.create_item(mes)
+        return data
+
+

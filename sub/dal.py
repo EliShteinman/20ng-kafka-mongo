@@ -1,14 +1,17 @@
+# sub/dal.py
 import logging
-from datetime import datetime
-from typing import Any, Dict, List, Optional
-from .models import Message
+from datetime import datetime, timezone
+from typing import List, Optional
+
+from bson import ObjectId
 from pymongo import AsyncMongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
-logger = logging.getLogger(__name__)
+from .models import MessageIn, MessageOut
 
+logger = logging.getLogger(__name__)
 
 class DataLoader:
     def __init__(self, mongo_uri: str, db_name: str, collection_name: str):
@@ -21,9 +24,7 @@ class DataLoader:
 
     async def connect(self):
         try:
-            self.client = AsyncMongoClient(
-                self.mongo_uri, serverSelectionTimeoutMS=5000
-            )
+            self.client = AsyncMongoClient(self.mongo_uri, serverSelectionTimeoutMS=5000)
             await self.client.admin.command("ping")
             self.db = self.client[self.db_name]
             self.collection = self.db[self.collection_name]
@@ -48,45 +49,43 @@ class DataLoader:
             self.client.close()
             logger.info("Disconnected from MongoDB.")
 
-    async def create_item(self, item: Message) -> Message:
+    async def create_item(self, item: MessageIn) -> MessageOut:
         if self.collection is None:
             raise RuntimeError("Database connection is not available.")
-
         try:
-            item_dict = item.model_dump(by_alias=True, exclude_none=True)
-            insert_result = await self.collection.insert_one(item_dict)
-            created_item = await self.collection.find_one(
-                {"_id": insert_result.inserted_id}
-            )
-            if created_item:
+            doc = {
+                "data": item.data,
+                "category": item.category,
+                "created_at": datetime.now(timezone.utc),
+            }
+            insert_result = await self.collection.insert_one(doc)
+            created_item = await self.collection.find_one({"_id": insert_result.inserted_id})
+            if not created_item:
+                raise RuntimeError("Failed to read back inserted document.")
+            if isinstance(created_item.get("_id"), ObjectId):
                 created_item["_id"] = str(created_item["_id"])
-                logger.info(f"Successfully created message in category {item.category}.")
-            return created_item
+            logger.info("Successfully created message in category %s.", item.category)
+            return MessageOut.model_validate(created_item)
 
         except DuplicateKeyError:
-            logger.warning(f"Duplicate message attempted for category {item.category}.")
+            logger.warning("Duplicate message attempted for category %s.", item.category)
             raise ValueError("Message already exists.")
         except PyMongoError as e:
-            logger.error(f"Error creating message in category {item.category}: {e}")
+            logger.error("Error creating message in category %s: %s", item.category, e)
             raise RuntimeError(f"Database operation failed: {e}")
 
-
-    async def receive_messages_from(
-        self,
-        time: datetime,
-    ) -> List[Message]:
-
+    async def receive_messages_from(self, time: datetime) -> List[MessageOut]:
         if self.collection is None:
             raise RuntimeError("Database connection is not available.")
 
         query = {"created_at": {"$gte": time}}
-
         try:
             cursor = self.collection.find(query).sort("created_at", 1)
-            items: List[Message] = []
+            items: List[MessageOut] = []
             async for mes in cursor:
-                mes["_id"] = str(mes["_id"])
-                items.append(mes)
+                if isinstance(mes.get("_id"), ObjectId):
+                    mes["_id"] = str(mes["_id"])
+                items.append(MessageOut.model_validate(mes))
             return items
         except PyMongoError as e:
             logger.error(f"Error retrieving data since {time}: {e}")

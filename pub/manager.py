@@ -35,7 +35,12 @@ class Manager:
         for result in results:
             topic = result["label"]
             for message in result["data"]:
-                self.producer.send(topic, message)
+                data = {
+                    "category": result["category"],
+                    "label": result["label"],
+                    "data": message
+                }
+                self.producer.send(topic, data)
                 sent_count += 1
 
         logger.info(f"Sent {sent_count} messages to Kafka")
