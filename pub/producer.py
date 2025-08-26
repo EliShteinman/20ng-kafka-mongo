@@ -8,14 +8,16 @@ logger = logging.getLogger(__name__)
 
 class Producer:
     """
-    Send messages to Kafka.
+    Send messages to Kafka server.
     """
 
     def __init__(self, url: str, port: int):
         """
-        Setup Kafka connection.
-        url: Kafka server address
-        port: Kafka server port
+        Connect to Kafka server.
+
+        Args:
+            url: Kafka server address like 'localhost'
+            port: Kafka server port like 9092
         """
         logger.info(f"Connecting to Kafka at {url}:{port}")
 
@@ -28,9 +30,11 @@ class Producer:
 
     def send(self, topic: str, message: str):
         """
-        Send one message to Kafka topic.
-        topic: where to send message
-        message: what to send
+        Send one message to a Kafka topic.
+
+        Args:
+            topic: Name of the topic where to send message
+            message: The message content to send
         """
         logger.debug(f"Sending message to topic: {topic}")
 

@@ -12,9 +12,9 @@ MONGO_PASSWORD = os.getenv("MONGO_PASSWORD")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "news")
 MONGO_COLLECTION_NAME = os.getenv("MONGO_COLLECTION_NAME", "news")
 
-KAPKA_URL = os.environ.get("KAPKA_URL", "localhost")
-KAPKA_PORT = int(os.environ.get("KAPKA_PORT", 9092))
-KAPKA_GROUP_ID = os.environ.get("KAPKA_GROUP_ID", "news-consumer")
+KAFKA_URL = os.environ.get("KAFKA_URL", "localhost")
+KAFKA_PORT = int(os.environ.get("KAFKA_PORT", 9092))
+KAFKA_GROUP_ID = os.environ.get("KAFKA_GROUP_ID", "news-consumer")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 LOG_KAFKA = os.getenv("LOG_KAFKA", "ERROR").upper()
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "news")
@@ -41,5 +41,5 @@ else:
 data_loader = DataLoader(
     mongo_uri=MONGO_URI, db_name=MONGO_DB_NAME, collection_name=MONGO_COLLECTION_NAME
 )
-consumer = Consumer(KAFKA_TOPIC, KAPKA_URL, KAPKA_PORT,  KAPKA_GROUP_ID)
+consumer = Consumer(KAFKA_TOPIC, KAFKA_URL, KAFKA_PORT, KAFKA_GROUP_ID)
 manager = Manager(data_loader, consumer)

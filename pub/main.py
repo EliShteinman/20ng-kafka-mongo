@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    App startup and shutdown.
+    Handle app startup and shutdown.
+    This runs when the app starts and stops.
     """
     logger.info("Application startup")
     try:
@@ -33,8 +34,10 @@ app = FastAPI(
 @app.get("/")
 def health_check_endpoint():
     """
-    Check if service is working.
-    Returns: status message
+    Check if the service is working.
+
+    Returns:
+        Dictionary with status message
     """
     logger.debug("Health check called")
     return {"status": "ok", "service": "news-publisher"}
@@ -43,9 +46,16 @@ def health_check_endpoint():
 @app.get("/pub")
 def push_pub(count: int = 1):
     """
-    Send data to Kafka.
-    count: how many messages per category to send
-    Returns: success message
+    Send news data to Kafka.
+
+    Args:
+        count: How many messages per category to send (default is 1)
+
+    Returns:
+        Dictionary with success message and count
+
+    Raises:
+        HTTPException: If sending fails
     """
     logger.info(f"Publish endpoint called, count: {count}")
 

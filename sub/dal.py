@@ -1,4 +1,3 @@
-# sub/dal.py
 import logging
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -13,8 +12,21 @@ from .models import MessageIn, MessageOut
 
 logger = logging.getLogger(__name__)
 
+
 class DataLoader:
+    """
+    Handle saving and reading messages from MongoDB database.
+    """
+
     def __init__(self, mongo_uri: str, db_name: str, collection_name: str):
+        """
+        Set up database connection info.
+
+        Args:
+            mongo_uri: Full MongoDB connection string
+            db_name: Name of the database to use
+            collection_name: Name of the collection to use
+        """
         self.mongo_uri = mongo_uri
         self.db_name = db_name
         self.collection_name = collection_name
@@ -23,6 +35,10 @@ class DataLoader:
         self.collection: Optional[Collection] = None
 
     async def connect(self):
+        """
+        Connect to MongoDB database.
+        Test the connection and set up indexes.
+        """
         try:
             self.client = AsyncMongoClient(self.mongo_uri, serverSelectionTimeoutMS=5000)
             await self.client.admin.command("ping")
@@ -37,6 +53,9 @@ class DataLoader:
             self.collection = None
 
     async def _setup_indexes(self):
+        """
+        Create database indexes to make searches faster.
+        """
         if self.collection is not None:
             try:
                 await self.collection.create_index("created_at")
@@ -45,16 +64,32 @@ class DataLoader:
                 logger.error(f"Failed to create index: {e}")
 
     def disconnect(self):
+        """
+        Close connection to MongoDB.
+        """
         if self.client:
             self.client.close()
             logger.info("Disconnected from MongoDB.")
 
     async def create_item(self, item: MessageIn) -> MessageOut:
+        """
+        Save a new message to the database.
+
+        Args:
+            item: MessageIn object with message data
+
+        Returns:
+            MessageOut object with the saved message and its ID
+
+        Raises:
+            RuntimeError: If database is not connected
+            ValueError: If message already exists
+        """
         if self.collection is None:
             raise RuntimeError("Database connection is not available.")
         try:
-            doc = item.model_dump()
-            insert_result = await self.collection.insert_one(doc)
+            document = item.model_dump()
+            insert_result = await self.collection.insert_one(document)
             created_item = await self.collection.find_one({"_id": insert_result.inserted_id})
             if not created_item:
                 raise RuntimeError("Failed to read back inserted document.")
@@ -71,6 +106,18 @@ class DataLoader:
             raise RuntimeError(f"Database operation failed: {e}")
 
     async def receive_messages_from(self, time: datetime) -> List[MessageOut]:
+        """
+        Get all messages created after a certain time.
+
+        Args:
+            time: Get messages created after this time
+
+        Returns:
+            List of MessageOut objects
+
+        Raises:
+            RuntimeError: If database is not connected or operation fails
+        """
         if self.collection is None:
             raise RuntimeError("Database connection is not available.")
 
@@ -78,10 +125,10 @@ class DataLoader:
         try:
             cursor = self.collection.find(query).sort("created_at", 1)
             items: List[MessageOut] = []
-            async for mes in cursor:
-                if isinstance(mes.get("_id"), ObjectId):
-                    mes["_id"] = str(mes["_id"])
-                items.append(MessageOut.model_validate(mes))
+            async for message in cursor:
+                if isinstance(message.get("_id"), ObjectId):
+                    message["_id"] = str(message["_id"])
+                items.append(MessageOut.model_validate(message))
             return items
         except PyMongoError as e:
             logger.error(f"Error retrieving data since {time}: {e}")

@@ -1,47 +1,71 @@
 import logging
 from datetime import datetime, timezone
 from .models import MessageIn
+
 logger = logging.getLogger(__name__)
 
 
 class Manager:
     """
-    Control data flow from reader to Kafka.
+    Control data flow from Kafka to MongoDB.
+    Gets messages from Kafka and saves them to database.
     """
 
-    def __init__(self, dal, consumer):
+    def __init__(self, data_loader, consumer):
         """
-        Setup manager.
-        data: DataRead object
-        producer: Producer object
+        Set up the manager.
+
+        Args:
+            data_loader: DataLoader object that handles database
+            consumer: Consumer object that reads from Kafka
         """
-        self.dal = dal
+        self.data_loader = data_loader
         self.consumer = consumer
         logger.info("Manager ready")
         self.last_check_time = datetime.now(timezone.utc)
 
     async def get_data_from_mongo(self):
-        new_messages = await self.dal.receive_messages_from(self.last_check_time)
+        """
+        Get new messages from database since last check.
+        Updates the last check time after getting messages.
+
+        Returns:
+            List of new MessageOut objects
+        """
+        new_messages = await self.data_loader.receive_messages_from(self.last_check_time)
         self.last_check_time = datetime.now(timezone.utc)
         return new_messages
 
     async def get_data_from_kafka(self):
+        """
+        Read messages from Kafka and save them to database.
+
+        Returns:
+            List of results from saving each message
+        """
         messages = self.consumer.consume()
         result = []
         for message in messages:
-            data = message.value
-            status = await self._insert_mes_to_mongo(data)
+            message_data = message.value
+            status = await self._insert_message_to_mongo(message_data)
             result.append(status)
         return result
 
-    async def _insert_mes_to_mongo(self, mes):
-        logger.info(f"Received: type={type(mes)}, content={str(mes)[:200]}...")
+    async def _insert_message_to_mongo(self, message):
+        """
+        Save one message to MongoDB database.
+
+        Args:
+            message: Dictionary with message data from Kafka
+
+        Returns:
+            MessageOut object with saved message data
+        """
+        logger.info(f"Received: type={type(message)}, content={str(message)[:200]}...")
         message_in = MessageIn(
-            data=mes["data"],
-            category=mes["label"],
+            data=message["data"],
+            category=message["label"],
             created_at=datetime.now(timezone.utc)
         )
-        data = await self.dal.create_item(message_in)
-        return data
-
-
+        saved_message = await self.data_loader.create_item(message_in)
+        return saved_message
