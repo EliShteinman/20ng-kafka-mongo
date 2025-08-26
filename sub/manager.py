@@ -18,11 +18,12 @@ class Manager:
         self.dal = dal
         self.consumer = consumer
         logger.info("Manager ready")
-        self.time = None
+        self.last_check_time = datetime.now(timezone.utc)
 
     async def get_data_from_mongo(self):
-        self.time = datetime.now()
-        return await self.dal.receive_messages_from(self.time)
+        new_messages = await self.dal.receive_messages_from(self.last_check_time)
+        self.last_check_time = datetime.now(timezone.utc)
+        return new_messages
 
     async def get_data_from_kafka(self):
         messages = self.consumer.consume()
@@ -34,10 +35,11 @@ class Manager:
         return result
 
     async def _insert_mes_to_mongo(self, mes):
+        logger.info(f"Received: type={type(mes)}, content={str(mes)[:200]}...")
         message_in = MessageIn(
             data=mes["data"],
-            category=mes["category"],
-            created_at = datetime.now(timezone.utc)
+            category=mes["label"],
+            created_at=datetime.now(timezone.utc)
         )
         data = await self.dal.create_item(message_in)
         return data
