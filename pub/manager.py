@@ -1,11 +1,8 @@
-from .main import data
-from .dal import DataRead
-
 
 class Manager:
-    def __init__(self):
-        self.data = DataRead()
-        self.producer = data["producer"]
+    def __init__(self, data, producer):
+        self.data = data
+        self.producer = producer
 
     def send_data(self):
         self._get_not_interesting()
@@ -20,5 +17,3 @@ class Manager:
         interesting = self.data.get_interesting()
         for message in interesting:
             self.producer.send("interesting", message)
-
-data["manager"] = Manager()
