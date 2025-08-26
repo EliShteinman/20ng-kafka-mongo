@@ -18,45 +18,25 @@ class Manager:
         self.producer = producer
         logger.info("Manager ready")
 
-    def send_data(self):
+    def send_data(self, count=1):
         """
-        Send all data types to Kafka.
+        Send data to Kafka.
+        count: how many messages per category
         """
-        logger.info("Starting data send process")
-        self._get_not_interesting()
-        self._get_interesting()
-        logger.info("Data send process complete")
+        logger.info(f"Starting data send process, count: {count}")
 
-    def _get_not_interesting(self):
-        """
-        Get not interesting data and send to Kafka.
-        """
-        logger.debug("Processing not interesting data")
+        results = self.data.get_data(count)
 
-        try:
-            not_interesting = self.data.get_not_interesting()
-            count = 0
-            for message in not_interesting:
-                self.producer.send("not_interesting", message)
-                count += 1
-            logger.info(f"Sent {count} not interesting messages")
-        except Exception as e:
-            logger.error(f"Error processing not interesting data: {e}")
-            raise
+        if not results:
+            logger.info("No more data to send")
+            return
 
-    def _get_interesting(self):
-        """
-        Get interesting data and send to Kafka.
-        """
-        logger.debug("Processing interesting data")
+        sent_count = 0
+        for result in results:
+            topic = result["label"]
+            for message in result["data"]:
+                self.producer.send(topic, message)
+                sent_count += 1
 
-        try:
-            interesting = self.data.get_interesting()
-            count = 0
-            for message in interesting:
-                self.producer.send("interesting", message)
-                count += 1
-            logger.info(f"Sent {count} interesting messages")
-        except Exception as e:
-            logger.error(f"Error processing interesting data: {e}")
-            raise
+        logger.info(f"Sent {sent_count} messages to Kafka")
+        return sent_count

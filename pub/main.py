@@ -41,17 +41,23 @@ def health_check_endpoint():
 
 
 @app.get("/pub")
-def push_pub():
+def push_pub(count: int = 1):
     """
     Send data to Kafka.
+    count: how many messages per category to send
     Returns: success message
     """
-    logger.info("Publish endpoint called")
+    logger.info(f"Publish endpoint called, count: {count}")
 
     try:
-        manager.send_data()
+        sent_count = manager.send_data(count)
+
+        if sent_count is None:
+            logger.info("All data finished")
+            return {"status": "finished", "message": "All messages have been sent"}
+
         logger.info("Data published successfully")
-        return {"status": "success", "message": "Data sent to Kafka"}
+        return {"status": "success", "message": f"Sent {sent_count} messages to Kafka"}
     except Exception as e:
         logger.error(f"Failed to publish data: {e}")
         raise HTTPException(status_code=500, detail=f"Publish failed: {str(e)}")
