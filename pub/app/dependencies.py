@@ -9,7 +9,6 @@ KAFKA_URL = os.environ.get("KAFKA_URL", "localhost")
 KAFKA_PORT = int(os.environ.get("KAFKA_PORT", 9092))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 LOG_KAFKA = os.getenv("LOG_KAFKA", "ERROR").upper()
-DATA_PATH = os.getenv("DATA_PATH", "data")
 
 # -----------------------
 logging.basicConfig(
@@ -21,6 +20,6 @@ logging.getLogger("kafka").setLevel(getattr(logging, LOG_KAFKA, logging.ERROR))
 
 
 # ------------------------
-data_reader = DataRead(DATA_PATH)
+data_reader = DataRead()
 producer = Producer(KAFKA_URL, KAFKA_PORT)
 manager = Manager(data_reader, producer)
