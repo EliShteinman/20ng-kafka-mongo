@@ -11,12 +11,14 @@ class DataRead:
     Split categories into interesting and not interesting groups.
     """
 
-    def __init__(self):
+    def __init__(self, data_home: str = None):
         """
         Start the data reader.
         Load all news categories and make them ready to use.
         """
         logger.info("Starting data read setup")
+
+        self.data_home = data_home
 
         # Define which categories are interesting or not
         self.categories = {
@@ -75,7 +77,11 @@ class DataRead:
         """
         for category, label in list(self.categories.items()):
             logger.debug(f"Loading category: {category}")
-            news_data = fetch_20newsgroups(subset="all", categories=[category])
+            news_data = fetch_20newsgroups(
+                subset="all",
+                categories=[category],
+                data_home=self.data_home
+            )
             self.categories[category] = {
                 label: self._create_generator(news_data.data, 1)
             }

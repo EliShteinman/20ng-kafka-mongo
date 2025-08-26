@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 
-from .dependencies import manager
+from dependencies import manager
 
 logger = logging.getLogger(__name__)
 

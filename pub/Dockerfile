@@ -1,4 +1,28 @@
-FROM ubuntu:latest
-LABEL authors="lyhwstynmn"
+FROM python:3.13-slim
 
-ENTRYPOINT ["top", "-b"]
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+RUN mkdir -p /home/appuser/scikit_learn_data && chmod -R 777 /home/appuser/scikit_learn_data
+COPY ./app /app/
+
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 8080
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+
+
+
+/home/appuser/scikit_learn_data

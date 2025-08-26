@@ -9,13 +9,19 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     networks: [app_net]
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     hostname: kafka
     container_name: kafka
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
       - "9092:9092"
       - "9094:9094"
@@ -31,12 +37,18 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     networks: [app_net]
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     ports:
       - "8080:8080"
     environment:
@@ -44,6 +56,107 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
     networks: [app_net]
+
+  mongodb:
+    image: mongo:8.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    networks: [app_net]
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: mongo-express
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_BASICAUTH: false
+    networks: [app_net]
+
+
+  news-publisher:
+    build:
+      context: ./pub
+      dockerfile: Dockerfile
+    container_name: news-publisher
+    ports:
+      - "9000:8080"
+    environment:
+      KAFKA_URL: kafka
+      KAFKA_PORT: 29092
+      LOG_LEVEL: INFO
+      LOG_KAFKA: ERROR
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks: [app_net]
+    restart: unless-stopped
+
+  news-interesting:
+    build:
+      context: ./sub
+      dockerfile: Dockerfile
+    container_name: news-interesting
+    ports:
+      - "8001:8080"
+    environment:
+      MONGO_HOST: mongodb
+      MONGO_PORT: 27017
+      MONGO_DB_NAME: news
+      MONGO_COLLECTION_NAME: interesting
+
+      KAFKA_URL: kafka
+      KAFKA_PORT: 29092
+      KAFKA_GROUP_ID: interesting-consumer-group
+      KAFKA_TOPIC: interesting
+
+      LOG_LEVEL: INFO
+      LOG_KAFKA: ERROR
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks: [app_net]
+    restart: unless-stopped
+
+  news-not-interesting:
+    build:
+      context: ./sub
+      dockerfile: Dockerfile
+    container_name: news-not-interesting
+    ports:
+      - "8002:8080"
+    environment:
+      MONGO_HOST: mongodb
+      MONGO_PORT: 27017
+      MONGO_DB_NAME: news
+      MONGO_COLLECTION_NAME: not_interesting
+
+      KAFKA_URL: kafka
+      KAFKA_PORT: 29092
+      KAFKA_GROUP_ID: not-interesting-consumer-group
+      KAFKA_TOPIC: not_interesting
+
+      LOG_LEVEL: INFO
+      LOG_KAFKA: ERROR
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks: [app_net]
+    restart: unless-stopped
 
 networks:
   app_net:
