@@ -46,12 +46,18 @@ class Manager:
         Returns:
             List of results from saving each message
         """
+        logger.info("Starting to consume from Kafka...")
         messages = self.consumer.consume()
+        logger.info("Got consumer object")
         result = []
+        message_count = 0
         for message in messages:
+            message_count += 1
+            logger.info(f"Processing message #{message_count}")
             message_data = message.value
             status = await self._insert_message_to_mongo(message_data)
             result.append(status)
+        logger.info(f"Finished consuming. Total messages: {message_count}")
         return result
 
     async def _insert_message_to_mongo(self, message):

@@ -17,7 +17,7 @@ MONGO_COLLECTION_NAME = os.getenv("MONGO_COLLECTION_NAME", "news")
 KAFKA_URL = os.environ.get("KAFKA_URL", "localhost")
 KAFKA_PORT = int(os.environ.get("KAFKA_PORT", 9092))
 KAFKA_GROUP_ID = os.environ.get("KAFKA_GROUP_ID", "news-consumer")
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+LOG_LEVEL = os.getenv("LOG_LEVEL", "debug").upper()
 LOG_KAFKA = os.getenv("LOG_KAFKA", "ERROR").upper()
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "news")
 

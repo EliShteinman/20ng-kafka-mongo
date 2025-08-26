@@ -53,6 +53,6 @@ class Manager:
                 # Send to Kafka
                 self.producer.send(topic, message_data)
                 sent_count += 1
-
+        self.producer.producer.flush()
         logger.info(f"Sent {sent_count} messages to Kafka")
         return sent_count

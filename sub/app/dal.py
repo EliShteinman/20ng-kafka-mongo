@@ -90,8 +90,10 @@ class DataLoader:
         if self.collection is None:
             raise RuntimeError("Database connection is not available.")
         try:
+            logger.info(f"Attempting to save message to MongoDB: {item.category}")
             document = item.model_dump()
             insert_result = await self.collection.insert_one(document)
+            logger.info(f"Insert successful, ID: {insert_result.inserted_id}")
             created_item = await self.collection.find_one(
                 {"_id": insert_result.inserted_id}
             )
