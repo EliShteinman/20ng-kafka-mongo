@@ -63,7 +63,9 @@ def detailed_health_check():
     Raises:
         HTTPException: 503 error if database is not available
     """
-    database_status = "connected" if data_loader.collection is not None else "disconnected"
+    database_status = (
+        "connected" if data_loader.collection is not None else "disconnected"
+    )
 
     if database_status == "disconnected":
         raise HTTPException(

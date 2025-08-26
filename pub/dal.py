@@ -20,26 +20,26 @@ class DataRead:
 
         # Define which categories are interesting or not
         self.categories = {
-            'alt.atheism': 'interesting',
-            'comp.graphics': 'interesting',
-            'comp.os.ms-windows.misc': 'interesting',
-            'comp.sys.ibm.pc.hardware': 'interesting',
-            'comp.sys.mac.hardware': 'interesting',
-            'comp.windows.x': 'interesting',
-            'misc.forsale': 'interesting',
-            'rec.autos': 'interesting',
-            'rec.motorcycles': 'interesting',
-            'rec.sport.baseball': 'interesting',
-            'rec.sport.hockey': 'not_interesting',
-            'sci.crypt': 'not_interesting',
-            'sci.electronics': 'not_interesting',
-            'sci.med': 'not_interesting',
-            'sci.space': 'not_interesting',
-            'soc.religion.christian': 'not_interesting',
-            'talk.politics.guns': 'not_interesting',
-            'talk.politics.mideast': 'not_interesting',
-            'talk.politics.misc': 'not_interesting',
-            'talk.religion.misc': 'not_interesting',
+            "alt.atheism": "interesting",
+            "comp.graphics": "interesting",
+            "comp.os.ms-windows.misc": "interesting",
+            "comp.sys.ibm.pc.hardware": "interesting",
+            "comp.sys.mac.hardware": "interesting",
+            "comp.windows.x": "interesting",
+            "misc.forsale": "interesting",
+            "rec.autos": "interesting",
+            "rec.motorcycles": "interesting",
+            "rec.sport.baseball": "interesting",
+            "rec.sport.hockey": "not_interesting",
+            "sci.crypt": "not_interesting",
+            "sci.electronics": "not_interesting",
+            "sci.med": "not_interesting",
+            "sci.space": "not_interesting",
+            "soc.religion.christian": "not_interesting",
+            "talk.politics.guns": "not_interesting",
+            "talk.politics.mideast": "not_interesting",
+            "talk.politics.misc": "not_interesting",
+            "talk.religion.misc": "not_interesting",
         }
         self._get_categories()
         logger.info("Data read setup complete")
@@ -60,11 +60,9 @@ class DataRead:
                 for label, generator in label_dict.items():
                     try:
                         batch = next(generator)
-                        results.append({
-                            "category": category,
-                            "label": label,
-                            "data": batch
-                        })
+                        results.append(
+                            {"category": category, "label": label, "data": batch}
+                        )
                     except StopIteration:
                         logger.debug(f"No more data for category: {category}")
                         continue
@@ -77,7 +75,7 @@ class DataRead:
         """
         for category, label in list(self.categories.items()):
             logger.debug(f"Loading category: {category}")
-            news_data = fetch_20newsgroups(subset='all', categories=[category])
+            news_data = fetch_20newsgroups(subset="all", categories=[category])
             self.categories[category] = {
                 label: self._create_generator(news_data.data, 1)
             }

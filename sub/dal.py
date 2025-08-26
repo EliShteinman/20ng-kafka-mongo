@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, Optional
 
 from bson import ObjectId
@@ -40,7 +40,9 @@ class DataLoader:
         Test the connection and set up indexes.
         """
         try:
-            self.client = AsyncMongoClient(self.mongo_uri, serverSelectionTimeoutMS=5000)
+            self.client = AsyncMongoClient(
+                self.mongo_uri, serverSelectionTimeoutMS=5000
+            )
             await self.client.admin.command("ping")
             self.db = self.client[self.db_name]
             self.collection = self.db[self.collection_name]
@@ -90,7 +92,9 @@ class DataLoader:
         try:
             document = item.model_dump()
             insert_result = await self.collection.insert_one(document)
-            created_item = await self.collection.find_one({"_id": insert_result.inserted_id})
+            created_item = await self.collection.find_one(
+                {"_id": insert_result.inserted_id}
+            )
             if not created_item:
                 raise RuntimeError("Failed to read back inserted document.")
             if isinstance(created_item.get("_id"), ObjectId):
@@ -99,7 +103,9 @@ class DataLoader:
             return MessageOut.model_validate(created_item)
 
         except DuplicateKeyError:
-            logger.warning("Duplicate message attempted for category %s.", item.category)
+            logger.warning(
+                "Duplicate message attempted for category %s.", item.category
+            )
             raise ValueError("Message already exists.")
         except PyMongoError as e:
             logger.error("Error creating message in category %s: %s", item.category, e)

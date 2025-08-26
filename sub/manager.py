@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone
+
 from .models import MessageIn
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,9 @@ class Manager:
         Returns:
             List of new MessageOut objects
         """
-        new_messages = await self.data_loader.receive_messages_from(self.last_check_time)
+        new_messages = await self.data_loader.receive_messages_from(
+            self.last_check_time
+        )
         self.last_check_time = datetime.now(timezone.utc)
         return new_messages
 
@@ -65,7 +68,7 @@ class Manager:
         message_in = MessageIn(
             data=message["data"],
             category=message["label"],
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
         saved_message = await self.data_loader.create_item(message_in)
         return saved_message

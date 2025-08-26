@@ -48,7 +48,7 @@ class Manager:
                 message_data = {
                     "category": result["category"],
                     "label": result["label"],
-                    "data": message
+                    "data": message,
                 }
                 # Send to Kafka
                 self.producer.send(topic, message_data)

@@ -11,7 +11,14 @@ class Consumer:
     Get messages from Kafka server.
     """
 
-    def __init__(self, topic, url: str, port: int, group_id: str, consumer_timeout_ms: int = 10000):
+    def __init__(
+        self,
+        topic,
+        url: str,
+        port: int,
+        group_id: str,
+        consumer_timeout_ms: int = 10000,
+    ):
         """
         Set up connection to Kafka.
 
@@ -29,11 +36,13 @@ class Consumer:
         self.consumer_timeout_ms = consumer_timeout_ms
 
         # Create Kafka consumer
-        self.consumer = KafkaConsumer(self.topic,
-                                      group_id=self.group_id,
-                                      value_deserializer=lambda message: json.loads(message.decode('ascii')),
-                                      bootstrap_servers=[f"{self.url}:{self.port}"],
-                                      consumer_timeout_ms=self.consumer_timeout_ms)
+        self.consumer = KafkaConsumer(
+            self.topic,
+            group_id=self.group_id,
+            value_deserializer=lambda message: json.loads(message.decode("ascii")),
+            bootstrap_servers=[f"{self.url}:{self.port}"],
+            consumer_timeout_ms=self.consumer_timeout_ms,
+        )
 
     def consume(self):
         """

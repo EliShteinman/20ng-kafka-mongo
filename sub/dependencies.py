@@ -1,9 +1,11 @@
 # services/data_loader/dependencies.py
 import logging
 import os
-from .dal import DataLoader
+
 from .consumer import Consumer
+from .dal import DataLoader
 from .manager import Manager
+
 # Read configuration from environment variables in a central place.
 MONGO_HOST = os.getenv("MONGO_HOST", "localhost")
 MONGO_PORT = int(os.getenv("MONGO_PORT", 27017))
@@ -32,8 +34,6 @@ if MONGO_USER and MONGO_PASSWORD:
     MONGO_URI = f"mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/?authSource=admin"
 else:
     MONGO_URI = f"mongodb://{MONGO_HOST}:{MONGO_PORT}/"
-
-
 
 
 # Create a single, shared instance (Singleton) of the DataLoader.
