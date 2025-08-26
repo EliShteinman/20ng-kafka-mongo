@@ -8,13 +8,15 @@ from .producer import Producer
 KAPKA_URL = os.environ.get("KAPKA_URL", "localhost")
 KAPKA_PORT = int(os.environ.get("KAPKA_PORT", 9092))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-
+LOG_KAFKA = os.getenv("LOG_KAFKA", "ERROR").upper()
 
 # -----------------------
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, logging.INFO),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
+
+logging.getLogger("kafka").setLevel(getattr(logging, LOG_KAFKA, logging.ERROR))
 
 
 # ------------------------

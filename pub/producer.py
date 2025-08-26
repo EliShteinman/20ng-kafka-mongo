@@ -26,7 +26,7 @@ class Producer:
 
         logger.info("Kafka producer ready")
 
-    def send(self, topic: str, message: dict):
+    def send(self, topic: str, message: str):
         """
         Send one message to Kafka topic.
         topic: where to send message

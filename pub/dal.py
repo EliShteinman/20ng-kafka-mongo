@@ -1,4 +1,5 @@
 import logging
+
 from sklearn.datasets import fetch_20newsgroups
 
 logger = logging.getLogger(__name__)
