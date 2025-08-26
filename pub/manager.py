@@ -1,4 +1,3 @@
-
 class Manager:
     def __init__(self, data, producer):
         self.data = data

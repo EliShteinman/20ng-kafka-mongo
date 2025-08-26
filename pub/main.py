@@ -1,13 +1,12 @@
 import logging
-from .dependencies import manager
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
-
-
-
+from .dependencies import manager
 
 logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
