@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 class MessageIn(BaseModel):
     data: str
     category: str
+    created_at: datetime
 
 class MessageOut(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")

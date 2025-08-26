@@ -53,11 +53,7 @@ class DataLoader:
         if self.collection is None:
             raise RuntimeError("Database connection is not available.")
         try:
-            doc = {
-                "data": item.data,
-                "category": item.category,
-                "created_at": datetime.now(timezone.utc),
-            }
+            doc = item.model_dump()
             insert_result = await self.collection.insert_one(doc)
             created_item = await self.collection.find_one({"_id": insert_result.inserted_id})
             if not created_item:

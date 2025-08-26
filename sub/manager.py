@@ -1,5 +1,6 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
+from .models import MessageIn
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +34,12 @@ class Manager:
         return result
 
     async def _insert_mes_to_mongo(self, mes):
-        data = await self.dal.create_item(mes)
+        message_in = MessageIn(
+            data=mes["data"],
+            category=mes["category"],
+            created_at = datetime.now(timezone.utc)
+        )
+        data = await self.dal.create_item(message_in)
         return data
 
 
