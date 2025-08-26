@@ -8,7 +8,7 @@ from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
-from .models import MessageIn, MessageOut
+from models import MessageIn, MessageOut
 
 logger = logging.getLogger(__name__)
 

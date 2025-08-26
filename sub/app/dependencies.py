@@ -2,9 +2,9 @@
 import logging
 import os
 
-from .consumer import Consumer
-from .dal import DataLoader
-from .manager import Manager
+from consumer import Consumer
+from dal import DataLoader
+from manager import Manager
 
 # Read configuration from environment variables in a central place.
 MONGO_HOST = os.getenv("MONGO_HOST", "localhost")

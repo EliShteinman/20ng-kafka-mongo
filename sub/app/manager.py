@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 
-from .models import MessageIn
+from models import MessageIn
 
 logger = logging.getLogger(__name__)
 
