@@ -1,73 +1,41 @@
 import logging
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, HTTPException
-
-from dependencies import manager
+from .services import publisher_service, kafka_producer
 
 logger = logging.getLogger(__name__)
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Handle app startup and shutdown.
-    This runs when the app starts and stops.
-    """
-    logger.info("Application startup")
-    try:
-        logger.info("App is ready")
-    except Exception as e:
-        logger.error(f"Startup error: {e}")
+    """Handles application startup and shutdown events."""
+    logger.info("Application startup...")
+    await kafka_producer.start()
     yield
-    logger.info("Application shutdown")
-
+    logger.info("Application shutdown...")
+    await kafka_producer.stop()
 
 app = FastAPI(
     lifespan=lifespan,
     title="News Publisher",
-    version="1.0",
-    description="Send news data to Kafka",
+    description="Publishes messages from the 20 Newsgroups dataset to Kafka."
 )
 
-
-@app.get("/")
-def health_check_endpoint():
+@app.get("/publish", summary="Publish messages to Kafka")
+async def publish_endpoint(count: int = 1):
     """
-    Check if the service is working.
-
-    Returns:
-        Dictionary with status message
+    Triggers the process of fetching and publishing news messages.
+    - Fetches `count` messages from each of the 20 news categories.
+    - Publishes them to 'interesting' or 'not_interesting' topics.
     """
-    logger.debug("Health check called")
-    return {"status": "ok", "service": "news-publisher"}
-
-
-@app.get("/pub")
-def push_pub(count: int = 1):
-    """
-    Send news data to Kafka.
-
-    Args:
-        count: How many messages per category to send (default is 1)
-
-    Returns:
-        Dictionary with success message and count
-
-    Raises:
-        HTTPException: If sending fails
-    """
-    logger.info(f"Publish endpoint called, count: {count}")
-
     try:
-        sent_count = manager.send_data(count)
-
+        sent_count = await publisher_service.publish_messages(count)
         if sent_count is None:
-            logger.info("All data finished")
-            return {"status": "finished", "message": "All messages have been sent"}
-
-        logger.info("Data published successfully")
-        return {"status": "success", "message": f"Sent {sent_count} messages to Kafka"}
+            return {"status": "complete", "message": "All available data has been published."}
+        return {"status": "success", "messages_published": sent_count}
     except Exception as e:
-        logger.error(f"Failed to publish data: {e}")
-        raise HTTPException(status_code=500, detail=f"Publish failed: {str(e)}")
+        logger.error(f"Failed to publish messages: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during publishing.")
+
+@app.get("/health", summary="Health Check")
+def health_check():
+    return {"status": "ok"}

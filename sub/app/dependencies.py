@@ -1,6 +1,7 @@
 # services/data_loader/dependencies.py
 import logging
 import os
+from threading import Thread
 
 from consumer import Consumer
 from dal import DataLoader
@@ -42,4 +43,5 @@ data_loader = DataLoader(
     mongo_uri=MONGO_URI, db_name=MONGO_DB_NAME, collection_name=MONGO_COLLECTION_NAME
 )
 consumer = Consumer(KAFKA_TOPIC, KAFKA_URL, KAFKA_PORT, KAFKA_GROUP_ID)
-manager = Manager(data_loader, consumer)
+consumer_thread = Thread(target=consumer.consume().poll())
+manager = Manager(data_loader, consumer_thread)

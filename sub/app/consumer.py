@@ -17,7 +17,6 @@ class Consumer:
         url: str,
         port: int,
         group_id: str,
-        consumer_timeout_ms: int = 10000,
     ):
         """
         Set up connection to Kafka.
@@ -33,7 +32,6 @@ class Consumer:
         self.url = url
         self.port = port
         self.group_id = group_id
-        self.consumer_timeout_ms = consumer_timeout_ms
 
         # Create Kafka consumer
         self.consumer = KafkaConsumer(
@@ -41,14 +39,14 @@ class Consumer:
             group_id=self.group_id,
             value_deserializer=lambda message: json.loads(message.decode("ascii")),
             bootstrap_servers=[f"{self.url}:{self.port}"],
-            consumer_timeout_ms=self.consumer_timeout_ms,
         )
 
     def consume(self):
         """
-        Get the consumer object to read messages.
+        Consume messages from Kafka topic.
 
-        Returns:
-            KafkaConsumer object that can read messages
+        Yields:
+            The next message from the topic.
         """
+        logger.info(f"Starting to consume messages from topic: {self.topic}")
         return self.consumer

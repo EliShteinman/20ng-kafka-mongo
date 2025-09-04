@@ -1,110 +1,70 @@
 import logging
-
+from typing import Dict, List, Any
 from sklearn.datasets import fetch_20newsgroups
 
 logger = logging.getLogger(__name__)
 
 
-class DataRead:
+class NewsGroupsDAL:
     """
-    Read data from 20 newsgroups dataset.
-    Split categories into interesting and not interesting groups.
+    Reads data from the 20 Newsgroups dataset and manages state.
+    CHANGED: Now tracks index per category to be stateless and resilient to restarts.
     """
 
     def __init__(self):
-        """
-        Start the data reader.
-        Load all news categories and make them ready to use.
-        """
-        logger.info("Starting data read setup")
-
-        # Define which categories are interesting or not
-        self.categories = {
-            "alt.atheism": "interesting",
-            "comp.graphics": "interesting",
-            "comp.os.ms-windows.misc": "interesting",
-            "comp.sys.ibm.pc.hardware": "interesting",
-            "comp.sys.mac.hardware": "interesting",
-            "comp.windows.x": "interesting",
-            "misc.forsale": "interesting",
-            "rec.autos": "interesting",
-            "rec.motorcycles": "interesting",
-            "rec.sport.baseball": "interesting",
-            "rec.sport.hockey": "not_interesting",
-            "sci.crypt": "not_interesting",
-            "sci.electronics": "not_interesting",
-            "sci.med": "not_interesting",
-            "sci.space": "not_interesting",
-            "soc.religion.christian": "not_interesting",
-            "talk.politics.guns": "not_interesting",
-            "talk.politics.mideast": "not_interesting",
-            "talk.politics.misc": "not_interesting",
-            "talk.religion.misc": "not_interesting",
+        logger.info("Initializing NewsGroupsDAL...")
+        self.categories_map = {
+            "interesting": [
+                'alt.atheism', 'comp.graphics', 'comp.os.ms-windows.misc',
+                'comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware', 'comp.windows.x',
+                'misc.forsale', 'rec.autos', 'rec.motorcycles', 'rec.sport.baseball'
+            ],
+            "not_interesting": [
+                'rec.sport.hockey', 'sci.crypt', 'sci.electronics', 'sci.med',
+                'sci.space', 'soc.religion.christian', 'talk.politics.guns',
+                'talk.politics.mideast', 'talk.politics.misc', 'talk.religion.misc'
+            ]
         }
-        self._get_categories()
-        logger.info("Data read setup complete")
+        self.data_cache: Dict[str, List[str]] = {}
+        self.category_indices: Dict[str, int] = {}
+        self._load_data()
+        logger.info("NewsGroupsDAL initialized successfully.")
 
-    def get_data(self, count=1):
+    def _load_data(self):
+        """Loads all data into memory and initializes indices."""
+        for topic, categories in self.categories_map.items():
+            for category in categories:
+                logger.debug(f"Loading category: {category}")
+                dataset = fetch_20newsgroups(subset='all', categories=[category],
+                                             remove=('headers', 'footers', 'quotes'))
+                self.data_cache[category] = dataset.data
+                self.category_indices[category] = 0
+
+    def get_next_batch(self, count: int = 1) -> List[Dict[str, Any]]:
         """
-        Get news messages from all categories.
-
-        Args:
-            count: How many batches to get from each category
-
-        Returns:
-            List of dictionaries with category, label and data
+        Gets the next batch of messages, one from each category.
+        Maintains an index to continue from where it left off.
         """
         results = []
         for _ in range(count):
-            for category, label_dict in self.categories.items():
-                for label, generator in label_dict.items():
-                    try:
-                        batch = next(generator)
-                        results.append(
-                            {"category": category, "label": label, "data": batch}
-                        )
-                    except StopIteration:
-                        logger.debug(f"No more data for category: {category}")
-                        continue
+            has_new_data = False
+            for topic, categories in self.categories_map.items():
+                for category in categories:
+                    current_index = self.category_indices.get(category, 0)
+                    if current_index < len(self.data_cache[category]):
+                        message = self.data_cache[category][current_index]
+                        results.append({
+                            "topic": topic,
+                            "payload": {
+                                "category": category,
+                                "data": message
+                            }
+                        })
+                        self.category_indices[category] += 1
+                        has_new_data = True
+
+        if not has_new_data and results == []:
+            logger.warning("All newsgroups data has been published.")
+            return None  # Signal that we're done
+
         return results
-
-    def _get_categories(self):
-        """
-        Load news data for each category.
-        Create generators that give data one piece at a time.
-        """
-        for category, label in list(self.categories.items()):
-            logger.debug(f"Loading category: {category}")
-            news_data = fetch_20newsgroups(
-                subset="all",
-                categories=[category],
-            )
-            self.categories[category] = {
-                label: self._create_generator(news_data.data, 1)
-            }
-
-    @staticmethod
-    def _create_generator(items, batch_size):
-        """
-        Make a generator that gives items in small groups.
-
-        Args:
-            items: List of all items
-            batch_size: How many items to give at once
-
-        Yields:
-            Small groups of items
-        """
-        for i in range(0, len(items), batch_size):
-            yield items[i:i + batch_size]
-
-
-if __name__ == "__main__":
-    data_reader = DataRead()
-    results = data_reader.get_data(3)
-    for result in results:
-        print(f"Category: {result['category']}")
-        print(f"Label: {result['label']}")
-        print(f"Data length: {len(result['data'])}")
-        print(f"First message preview: {result['data'][0][:50]}...")
-        print("-" * 50)
