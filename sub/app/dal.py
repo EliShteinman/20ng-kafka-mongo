@@ -1,7 +1,7 @@
 # sub/app/dal.py (מתוקן סופית)
 import logging
 from typing import List
-from pymongo import AsyncMongoClient  # <-- התיקון המרכזי כאן
+from pymongo import AsyncMongoClient
 from pymongo.collection import Collection
 from .models import MessageInDB
 
