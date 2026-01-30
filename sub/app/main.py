@@ -1,104 +1,52 @@
 import logging
 from contextlib import asynccontextmanager
-
+from typing import List
 from fastapi import FastAPI, HTTPException, status
-
-from dependencies import data_loader, manager
+from .services import subscriber_service, mongo_dal
+from .models import MessageInDB
 
 logger = logging.getLogger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Handle app startup and shutdown.
-    Connect to database when app starts.
-    Disconnect from database when app stops.
+    Handles application startup and shutdown.
+    NEW: Starts a background task to consume from Kafka.
     """
-    logger.info("Application startup: connecting to database...")
-    try:
-        await data_loader.connect()
-        logger.info("Database connection established successfully.")
-    except Exception as e:
-        logger.error(f"Failed to connect to database: {e}")
-
+    logger.info("Application startup...")
+    subscriber_service.start_consuming()
     yield
-    logger.info("Application shutdown: disconnecting from database...")
-    try:
-        data_loader.disconnect()
-        logger.info("Database disconnection completed.")
-    except Exception as e:
-        logger.error(f"Error during database disconnection: {e}")
-
+    logger.info("Application shutdown...")
+    subscriber_service.stop_consuming()
 
 app = FastAPI(
     lifespan=lifespan,
     title="News Subscriber",
-    version="1.0",
-    description="Read news data from Kafka and save to MongoDB",
+    description=f"Consumes from Kafka topic '{subscriber_service.consumer._consumer.subscription()}' and saves to MongoDB."
 )
 
-
-@app.get("/")
-def health_check_endpoint():
+@app.get("/messages", response_model=List[MessageInDB], summary="Get All Saved Messages")
+async def get_all_messages():
     """
-    Simple health check.
-    Check if the service is running.
-
-    Returns:
-        Dictionary with status and service name
+    Retrieves ALL messages stored in the database for this subscriber.
     """
-    return {"status": "ok", "service": "news-subscriber"}
+    try:
+        messages = await mongo_dal.get_all_messages()
+        return messages
+    except Exception as e:
+        logger.error(f"Failed to retrieve messages: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve messages from database.")
 
-
-@app.get("/health")
-def detailed_health_check():
-    """
-    Detailed health check.
-    Check if service and database are working.
-
-    Returns:
-        Dictionary with detailed status info
-
-    Raises:
-        HTTPException: 503 error if database is not available
-    """
-    database_status = (
-        "connected" if data_loader.collection is not None else "disconnected"
-    )
-
-    if database_status == "disconnected":
+@app.get("/health", summary="Health Check")
+async def health_check():
+    """Checks service and database connectivity."""
+    db_ok = await mongo_dal.ping()
+    if not db_ok:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database not available",
+            detail="Database connection failed."
         )
-
     return {
         "status": "ok",
-        "service": "news-subscriber",
-        "version": "1.0",
-        "database_status": database_status,
+        "database": "connected"
     }
-
-
-@app.get("/update-data")
-async def update_data():
-    """
-    Read new messages from Kafka and save them to database.
-
-    Returns:
-        Results from processing Kafka messages
-    """
-    await manager.get_data_from_kafka()
-
-
-@app.get("/get-messages")
-async def get_messages():
-    """
-    Get new messages from database since last check.
-
-    Returns:
-        List of new messages from MongoDB
-    """
-    messages_data = await manager.get_data_from_mongo()
-    return messages_data

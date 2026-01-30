@@ -1,143 +1,42 @@
+# sub/app/dal.py (מתוקן סופית)
 import logging
-from datetime import datetime
-from typing import List, Optional
-
-from bson import ObjectId
+from typing import List
 from pymongo import AsyncMongoClient
 from pymongo.collection import Collection
-from pymongo.database import Database
-from pymongo.errors import DuplicateKeyError, PyMongoError
-
-from models import MessageIn, MessageOut
+from .models import MessageInDB
 
 logger = logging.getLogger(__name__)
 
 
-class DataLoader:
-    """
-    Handle saving and reading messages from MongoDB database.
-    """
+class MongoDAL:
+    def __init__(self, uri: str, db_name: str, collection_name: str):
+        self._client = AsyncMongoClient(uri)
+        self._db = self._client[db_name]
+        self.collection: Collection = self._db[collection_name]
+        logger.info(f"MongoDAL initialized for collection '{collection_name}'.")
 
-    def __init__(self, mongo_uri: str, db_name: str, collection_name: str):
-        """
-        Set up database connection info.
+    async def save_message(self, message_data: dict) -> MessageInDB:
+        """Saves a single message document to the collection."""
+        message = MessageInDB(**message_data)
+        document = message.model_dump(by_alias=True)
+        document.pop("_id", None)
 
-        Args:
-            mongo_uri: Full MongoDB connection string
-            db_name: Name of the database to use
-            collection_name: Name of the collection to use
-        """
-        self.mongo_uri = mongo_uri
-        self.db_name = db_name
-        self.collection_name = collection_name
-        self.client: Optional[AsyncMongoClient] = None
-        self.db: Optional[Database] = None
-        self.collection: Optional[Collection] = None
+        result = await self.collection.insert_one(document)
+        created_document = await self.collection.find_one({"_id": result.inserted_id})
+        return MessageInDB(**created_document)
 
-    async def connect(self):
-        """
-        Connect to MongoDB database.
-        Test the connection and set up indexes.
-        """
+    async def get_all_messages(self) -> List[MessageInDB]:
+        """Fetches ALL messages from the collection, as per requirement."""
+        messages = []
+        cursor = self.collection.find({})
+        async for document in cursor:
+            messages.append(MessageInDB(**document))
+        return messages
+
+    async def ping(self) -> bool:
+        """Checks if the database connection is alive."""
         try:
-            self.client = AsyncMongoClient(
-                self.mongo_uri, serverSelectionTimeoutMS=5000
-            )
-            await self.client.admin.command("ping")
-            self.db = self.client[self.db_name]
-            self.collection = self.db[self.collection_name]
-            logger.info("Successfully connected to MongoDB.")
-            await self._setup_indexes()
-        except PyMongoError as e:
-            logger.error(f"DATABASE CONNECTION FAILED: {e}")
-            self.client = None
-            self.db = None
-            self.collection = None
-
-    async def _setup_indexes(self):
-        """
-        Create database indexes to make searches faster.
-        """
-        if self.collection is not None:
-            try:
-                await self.collection.create_index("created_at")
-                logger.info("Index on 'created_at' ensured.")
-            except PyMongoError as e:
-                logger.error(f"Failed to create index: {e}")
-
-    def disconnect(self):
-        """
-        Close connection to MongoDB.
-        """
-        if self.client:
-            self.client.close()
-            logger.info("Disconnected from MongoDB.")
-
-    async def create_item(self, item: MessageIn) -> MessageOut:
-        """
-        Save a new message to the database.
-
-        Args:
-            item: MessageIn object with message data
-
-        Returns:
-            MessageOut object with the saved message and its ID
-
-        Raises:
-            RuntimeError: If database is not connected
-            ValueError: If message already exists
-        """
-        if self.collection is None:
-            raise RuntimeError("Database connection is not available.")
-        try:
-            logger.info(f"Attempting to save message to MongoDB: {item.category}")
-            document = item.model_dump()
-            insert_result = await self.collection.insert_one(document)
-            logger.info(f"Insert successful, ID: {insert_result.inserted_id}")
-            created_item = await self.collection.find_one(
-                {"_id": insert_result.inserted_id}
-            )
-            if not created_item:
-                raise RuntimeError("Failed to read back inserted document.")
-            if isinstance(created_item.get("_id"), ObjectId):
-                created_item["_id"] = str(created_item["_id"])
-            logger.info("Successfully created message in category %s.", item.category)
-            return MessageOut.model_validate(created_item)
-
-        except DuplicateKeyError:
-            logger.warning(
-                "Duplicate message attempted for category %s.", item.category
-            )
-            raise ValueError("Message already exists.")
-        except PyMongoError as e:
-            logger.error("Error creating message in category %s: %s", item.category, e)
-            raise RuntimeError(f"Database operation failed: {e}")
-
-    async def receive_messages_from(self, time: datetime) -> List[MessageOut]:
-        """
-        Get all messages created after a certain time.
-
-        Args:
-            time: Get messages created after this time
-
-        Returns:
-            List of MessageOut objects
-
-        Raises:
-            RuntimeError: If database is not connected or operation fails
-        """
-        if self.collection is None:
-            raise RuntimeError("Database connection is not available.")
-
-        query = {"created_at": {"$gte": time}}
-        try:
-            cursor = self.collection.find(query).sort("created_at", 1)
-            items: List[MessageOut] = []
-            async for message in cursor:
-                if isinstance(message.get("_id"), ObjectId):
-                    message["_id"] = str(message["_id"])
-                items.append(MessageOut.model_validate(message))
-            return items
-        except PyMongoError as e:
-            logger.error(f"Error retrieving data since {time}: {e}")
-            raise RuntimeError(f"Database operation failed: {e}")
+            await self._client.admin.command('ping')
+            return True
+        except Exception:
+            return False
